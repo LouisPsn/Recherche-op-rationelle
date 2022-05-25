@@ -40,6 +40,7 @@ print("Fragilité des objets = ", fragilite)
 nb_boites = nb_objets
 
 # Import du paquet PythonMIP et de toutes ses fonctionnalités
+from tkinter import Y
 from mip import *
 # Import du paquet time pour calculer le temps de résolution
 import time 
@@ -49,18 +50,21 @@ print(" %%%% FORMULATION 1 %%%%% ")
 # Création du modèle vide 
 model1 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
 
-# Création des variables z et y
-y = 
-x = 
+# Création des variables x et y
+x = [model1.add_var(name="x(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
+y = [model1.add_var(name="y(" + str(k) + ")", lb=0, ub=1, var_type=BINARY) for k in range(nb_boites)]
+z = [model1.add_var(name="z", lb=0, ub=1, var_type=BINARY)]
 
 # Ajout de la fonction objectif au modèle
+model1.objective = minimize(xsum(y[k]) for k in range (nb_boites))
 
 
 # Ajout des contraintes au modèle
+for i in range(nb_objets):
+    [model1.add_constr(xsum([x[i + k*nb_objets] for k in range(nb_boites)]) == 1)]
 
-
-
-
+for i in range (nb_objets):
+    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] <= fragilite[i] + (1 - z)*M)) for k in range(nb_boites)]
 
 
 
@@ -133,20 +137,21 @@ print("----------------------------------\n")
 print(" %%%% FORMULATION 2 %%%%% ")
 
 # Création du modèle vide 
-model2 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
+# model2 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
 
 # Création des variables z et y
-r =
-z =
+r = [model2.add_var(name="r(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets)]
+z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
 
 # Ajout de la fonction objectif au modèle
-
-
+model1.objective = minimize(xsum(r[i]) for k in range (nb_objets))
 
 # Ajout des contraintes au modèle
+for i in range(nb_objets):
+    [model1.add_constr(xsum(z[i + j*nb_objets]) == 1) for j in range(nb_boites)]
 
-
-
+for j in range(nb_boites):
+    [model1.add_constr(xsum([poids[i]*z[i + j*nb_objets] <= fragilite[j] for i in range(nb_objets)]))]
 
 
 
