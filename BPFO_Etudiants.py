@@ -31,7 +31,6 @@ with open(datafileName, "r") as file:
         fragilite.append(int(lineTab[1]))
         if (int(lineTab[1]) > M):
             M = int(lineTab[1])
-            
 # Affichage des informations lues
 print("Nombre d'objets = ", nb_objets)
 print("Poids des objets = ", poids)
@@ -53,10 +52,10 @@ model1 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (rempla
 # Création des variables x et y
 x = [model1.add_var(name="x(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
 y = [model1.add_var(name="y(" + str(k) + ")", lb=0, ub=1, var_type=BINARY) for k in range(nb_boites)]
-z = [model1.add_var(name="z", lb=0, ub=1, var_type=BINARY)]
+annul = [model1.add_var(name="annul(" + str(k) + ")", lb=0, ub=1, var_type=BINARY) for k in range(nb_objets)]
 
 # Ajout de la fonction objectif au modèle
-model1.objective = minimize(xsum(y[k]) for k in range (nb_boites))
+model1.objective = minimize(xsum(y[k] for k in range (nb_boites)))
 
 
 # Ajout des contraintes au modèle
@@ -64,12 +63,11 @@ for i in range(nb_objets):
     [model1.add_constr(xsum([x[i + k*nb_objets] for k in range(nb_boites)]) == 1)]
 
 for i in range (nb_objets):
-    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] <= fragilite[i] + (1 - z)*M)) for k in range(nb_boites)]
+    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for k in range(nb_boites)) <= fragilite[i] + (1 - annul[i])*M)]
 
-
-
-
-
+for i in range (nb_objets):
+    for k in range(nb_boites):
+        [model1.add_constr(x[i + k*nb_boites] <= y[k])] 
 
 
 # Ecrire le modèle (ATTENTION ici le modèle est très grand)
@@ -103,7 +101,6 @@ elif status == OptimizationStatus.UNBOUNDED:
     
 print("Temps de résolution (s) : ", runtime)
 print("----------------------------------")
-
 # Si le modèle a été résolu à l'optimalité ou si une solution a été trouvée dans le temps limite accordé
 if model1.num_solutions>0:
     print("Solution calculée")
@@ -112,14 +109,14 @@ if model1.num_solutions>0:
     for k in range(nb_boites):
         if (y[k].x >= 1e-4):
             print("- La boîte ",k , " ouverte à ", y[k].x*100,"% contient les objets")
-            for i in range(nb_objets):
-                if (x[i][k].x >= 1e-4):
-                    print("\t Objet ",i, " à ", x[i][k].x*100, "%")
+            # for i in range(nb_objets):
+            #     if (z[i][k].x >= 1e-4):
+            #         print("\t Objet ",i, " à ", x[i][k].x*100, "%")
 else:
     print("Pas de solution calculée")
 print("----------------------------------\n")
 
-#if model1.num_solutions>0: # Si une solution a été calculée
+# if model1.num_solutions>0: # Si une solution a été calculée
 #    solutionfileName = 'solution_cap41.txt' #nom du fichier solution
 #    with open(solutionfileName, 'w') as file:  #ouvre le fichier, le ferme automatiquement à la fin et gère les exceptions
 #        file.write(str(model1.objective_value)) #Il faut convertir les valeurs numériques en chaîne de caractères
@@ -137,25 +134,25 @@ print("----------------------------------\n")
 print(" %%%% FORMULATION 2 %%%%% ")
 
 # Création du modèle vide 
-# model2 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
+model2 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
 
 # Création des variables z et y
 r = [model2.add_var(name="r(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets)]
 z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
 
 # Ajout de la fonction objectif au modèle
-model1.objective = minimize(xsum(r[i]) for k in range (nb_objets))
+model1.objective = minimize(xsum(r[i] for k in range (nb_objets)))
 
 # Ajout des contraintes au modèle
 for i in range(nb_objets):
-    [model1.add_constr(xsum(z[i + j*nb_objets]) == 1) for j in range(nb_boites)]
+    [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_boites)) == 1)]
 
 for j in range(nb_boites):
-    [model1.add_constr(xsum([poids[i]*z[i + j*nb_objets] <= fragilite[j] for i in range(nb_objets)]))]
+    [model1.add_constr(xsum(poids[i]*z[i + j*nb_objets] <= fragilite[j] for i in range(nb_objets)))]
 
-
-
-
+for i in range(nb_objets):
+    for j in range(nb_boites):
+        [model1.add_constr(z[i + j*nb_objets] <= r[j])]
 
 
 
