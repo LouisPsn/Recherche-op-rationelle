@@ -148,7 +148,7 @@ for i in range(nb_objets):
     [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_boites)) == 1)]
 
 for j in range(nb_boites):
-    [model1.add_constr(xsum(poids[i]*z[i + j*nb_objets] <= fragilite[j] for i in range(nb_objets)))]
+    [model1.add_constr(xsum(poids[i]*z[i + j*nb_objets]for i in range(nb_objets)) <= fragilite[j])]
 
 for i in range(nb_objets):
     for j in range(nb_boites):
@@ -189,6 +189,7 @@ print("Temps de résolution (s) : ", runtime)
 print("----------------------------------")
 
 # Si le modèle a été résolu à l'optimalité ou si une solution a été trouvée dans le temps limite accordé
+print(model2.num_solutions)
 if model2.num_solutions>0:
     print("Solution calculée")
     print("-> Valeur de la fonction objectif de la solution calculée : ",  model2.objective_value)  # ne pas oublier d'arrondir si le coût doit être entier
