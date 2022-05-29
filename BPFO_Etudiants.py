@@ -52,7 +52,6 @@ model1 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (rempla
 # Création des variables x et y
 x = [model1.add_var(name="x(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
 y = [model1.add_var(name="y(" + str(k) + ")", lb=0, ub=1, var_type=BINARY) for k in range(nb_boites)]
-annul = [model1.add_var(name="annul(" + str(k) + ")", lb=0, ub=1, var_type=BINARY) for k in range(nb_objets)]
 
 # Ajout de la fonction objectif au modèle
 model1.objective = minimize(xsum(y[k] for k in range (nb_boites)))
@@ -63,11 +62,16 @@ for i in range(nb_objets):
     [model1.add_constr(xsum([x[i + k*nb_objets] for k in range(nb_boites)]) == 1)]
 
 for k in range (nb_objets):
-    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for i in range(nb_boites)) <= fragilite[i] + (1 - annul[i])*M)]
+    for j in range (nb_objets):
+        [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for i in range (nb_objets)) <= x[j + k*nb_objets]*fragilite[j] + M*(1 - x[j + k*nb_objets]))]
 
 for i in range (nb_objets):
     for k in range(nb_boites):
         [model1.add_constr(x[i + k*nb_boites] <= y[k])] 
+
+for i in range(nb_objets - 1):
+    [model1.add_constr(y[i] >= y[i + 1])]
+
 
 
 # Ecrire le modèle (ATTENTION ici le modèle est très grand)
@@ -118,34 +122,9 @@ print("----------------------------------\n")
 
 
 
-# def tri_fragilite_poids(fra, poi):
-#     new_fra = []
-#     new_poi = []
-#     idx = []
-#     long = len(fra)
-#     min_max = 0
-#     for k in range (long):
-#         min = 10000
-#         for i in range (long):
-#             if (fra[i] < min and fra[i] > min_max):
-#                 mem_i = i
-#                 min = fra[i]
-#         idx.append(mem_i)
-#         new_fra.append(fra[mem_i])
-#         new_poi.append(poi[mem_i])
-#         min_max = fra[mem_i]
-#     return (idx, new_fra, new_poi)    
-
-
 
 
 print(" %%%% FORMULATION 2 %%%% ")
-
-# (idx, new_fra, new_poi) = tri_fragilite_poids(fragilite, poids)
-
-# print(idx)
-# print(new_fra)
-# print(new_poi)
 
 # Création du modèle vide 
 model2 = Model(name = "BPFO_2", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
@@ -155,18 +134,18 @@ r = [model2.add_var(name="r(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i
 z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_objets)]
 
 # Ajout de la fonction objectif au modèle
-model1.objective = minimize(xsum(r[i] for i in range (nb_objets)))
+model2.objective = minimize(xsum(r[i] for i in range (nb_objets)))
 
 # Ajout des contraintes au modèle
+for j in range(nb_objets):
+    [model2.add_constr(r[j] + xsum(z[i + j*nb_objets] for i in range (j - 1)) == 1)]
+
 for i in range(nb_objets):
-    [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_objets)) == 1)]
+    [model2.add_constr(poids[i]*r[i] + (xsum(z[i + j*nb_objets]*poids[j] for j in range (i + 1, nb_objets))) <= fragilite[i]*r[i])]
 
-for j in range(nb_objets):
-    [model1.add_constr(xsum(poids[j]*z[i + j*nb_objets] for i in range (nb_objets)) <= fragilite[j]*r[j])]
-
-for j in range(nb_objets):
-    for i in range(nb_objets):
-        z[i + j*nb_objets] <= r[j]
+for i in range(nb_objets):
+    for j in range(nb_objets):
+        [model2.add_constr(z[i + j*nb_objets] <= r[i])]
 
 
 # Ecrire le modèle (ATTENTION ici le modèle est très grand)
@@ -187,12 +166,6 @@ status = model2.optimize(max_seconds = 120)
 runtime = time.perf_counter() - start
 
 
-print(nb_objets)
-for j in range (nb_objets):
-    print("    r = ", r[j].x)
-    for i in range (nb_objets):
-        print("z = ", z[i + j*nb_objets].x)
-
 
 print("\n----------------------------------")
 if status == OptimizationStatus.OPTIMAL:
@@ -211,7 +184,6 @@ print("----------------------------------")
 
 
 # Si le modèle a été résolu à l'optimalité ou si une solution a été trouvée dans le temps limite accordé
-print(model2.num_solutions)
 if model2.num_solutions>0:
     print("Solution calculée")
     print("-> Valeur de la fonction objectif de la solution calculée : ",  model2.objective_value)  # ne pas oublier d'arrondir si le coût doit être entier
