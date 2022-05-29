@@ -44,7 +44,7 @@ from mip import *
 # Import du paquet time pour calculer le temps de résolution
 import time 
 
-print(" %%%% FORMULATION 1 %%%%% ")
+print(" %%%% FORMULATION 1 %%%% ")
 
 # Création du modèle vide 
 model1 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
@@ -62,8 +62,8 @@ model1.objective = minimize(xsum(y[k] for k in range (nb_boites)))
 for i in range(nb_objets):
     [model1.add_constr(xsum([x[i + k*nb_objets] for k in range(nb_boites)]) == 1)]
 
-for i in range (nb_objets):
-    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for k in range(nb_boites)) <= fragilite[i] + (1 - annul[i])*M)]
+for k in range (nb_objets):
+    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for i in range(nb_boites)) <= fragilite[i] + (1 - annul[i])*M)]
 
 for i in range (nb_objets):
     for k in range(nb_boites):
@@ -109,51 +109,64 @@ if model1.num_solutions>0:
     for k in range(nb_boites):
         if (y[k].x >= 1e-4):
             print("- La boîte ",k , " ouverte à ", y[k].x*100,"% contient les objets")
-            # for i in range(nb_objets):
-            #     if (z[i][k].x >= 1e-4):
-            #         print("\t Objet ",i, " à ", x[i][k].x*100, "%")
+            for i in range(nb_objets):
+                if (x[i + k*nb_objets].x >= 1e-4):
+                    print("\t Objet ",i, " à ", x[i + k*nb_objets].x*100, "%")
 else:
     print("Pas de solution calculée")
 print("----------------------------------\n")
 
-# if model1.num_solutions>0: # Si une solution a été calculée
-#    solutionfileName = 'solution_cap41.txt' #nom du fichier solution
-#    with open(solutionfileName, 'w') as file:  #ouvre le fichier, le ferme automatiquement à la fin et gère les exceptions
-#        file.write(str(model1.objective_value)) #Il faut convertir les valeurs numériques en chaîne de caractères
-#        file.write("\n") #Je passe à la ligne suivante
-#        for i in range(nb_warehouses):
-#            if (z[i].x >= 0.5):
-#                file.write(str(i)) 
-#                file.write("\n") #Je passe à la ligne suivante
-#                for j in range(nb_customers):
-#                    if (y[j][i].x >= 1e-4):
-#                        file.write(str(j)+" "+str(round(y[j][i].x * 100,2)))
-#                        file.write("\n") #Je passe à la ligne suivante
 
 
-print(" %%%% FORMULATION 2 %%%%% ")
+# def tri_fragilite_poids(fra, poi):
+#     new_fra = []
+#     new_poi = []
+#     idx = []
+#     long = len(fra)
+#     min_max = 0
+#     for k in range (long):
+#         min = 10000
+#         for i in range (long):
+#             if (fra[i] < min and fra[i] > min_max):
+#                 mem_i = i
+#                 min = fra[i]
+#         idx.append(mem_i)
+#         new_fra.append(fra[mem_i])
+#         new_poi.append(poi[mem_i])
+#         min_max = fra[mem_i]
+#     return (idx, new_fra, new_poi)    
+
+
+
+
+print(" %%%% FORMULATION 2 %%%% ")
+
+# (idx, new_fra, new_poi) = tri_fragilite_poids(fragilite, poids)
+
+# print(idx)
+# print(new_fra)
+# print(new_poi)
 
 # Création du modèle vide 
-model2 = Model(name = "BPFO_1", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
+model2 = Model(name = "BPFO_2", solver_name="CBC")  # Utilisation de CBC (remplacer par GUROBI pour utiliser cet autre solveur)
 
 # Création des variables z et y
 r = [model2.add_var(name="r(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets)]
-z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_boites)]
+z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, var_type=BINARY) for i in range(nb_objets*nb_objets)]
 
 # Ajout de la fonction objectif au modèle
-model1.objective = minimize(xsum(r[i] for k in range (nb_objets)))
+model1.objective = minimize(xsum(r[i] for i in range (nb_objets)))
 
 # Ajout des contraintes au modèle
 for i in range(nb_objets):
-    [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_boites)) == 1)]
+    [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_objets)) == 1)]
 
-for j in range(nb_boites):
-    [model1.add_constr(xsum(poids[i]*z[i + j*nb_objets]for i in range(nb_objets)) <= fragilite[j])]
+for j in range(nb_objets):
+    [model1.add_constr(xsum(poids[j]*z[i + j*nb_objets] for i in range (nb_objets)) <= fragilite[j]*r[j])]
 
-for i in range(nb_objets):
-    for j in range(nb_boites):
-        [model1.add_constr(z[i + j*nb_objets] <= r[j])]
-
+for j in range(nb_objets):
+    for i in range(nb_objets):
+        z[i + j*nb_objets] <= r[j]
 
 
 # Ecrire le modèle (ATTENTION ici le modèle est très grand)
@@ -173,6 +186,14 @@ status = model2.optimize(max_seconds = 120)
 # Arrêt du chronomètre et calcul du temps de résolution
 runtime = time.perf_counter() - start
 
+
+print(nb_objets)
+for j in range (nb_objets):
+    print("    r = ", r[j].x)
+    for i in range (nb_objets):
+        print("z = ", z[i + j*nb_objets].x)
+
+
 print("\n----------------------------------")
 if status == OptimizationStatus.OPTIMAL:
     print("Status de la résolution: OPTIMAL")
@@ -188,6 +209,7 @@ elif status == OptimizationStatus.UNBOUNDED:
 print("Temps de résolution (s) : ", runtime)
 print("----------------------------------")
 
+
 # Si le modèle a été résolu à l'optimalité ou si une solution a été trouvée dans le temps limite accordé
 print(model2.num_solutions)
 if model2.num_solutions>0:
@@ -199,8 +221,8 @@ if model2.num_solutions>0:
             print("- La boîte représentée par ",i , " est ouverte à ", r[i].x*100,"% contient les objets")
             print("\t Objet ",i, " à ", r[i].x*100, "%")
             for j in range(i+1,nb_objets):
-                if (z[i][j].x >= 1e-4):
-                    print("\t Objet ",j, " à ", z[i][j].x*100, "%")
+                if (z[i + j*nb_objets].x >= 1e-4):
+                    print("\t Objet ",j, " à ", z[i + j*nb_objets].x*100, "%")
 else:
     print("Pas de solution calculée")
 print("----------------------------------\n")

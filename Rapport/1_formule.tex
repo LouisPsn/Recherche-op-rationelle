@@ -1,0 +1,62 @@
+\section{Première formulation}\label{sec:1_form}
+
+\subsection*{Question 1.}
+
+On peut borner le nombre de paquets dont on a besoin par $n$ car il y a $n$ objets.\vspace{12pt}
+
+
+\subsection*{Question 2.}
+
+On peut modéliser le problème sous la forme d'un programme linéaire comme ceci :\vspace{12pt}
+
+\begin{equation}
+    \begin{cases}
+        min. z = \sum_{k = 1}^{n} y_k\\
+        s.c. \hspace{6pt}\sum_{k = 1}^{n} x_{i, k} = 1 \hspace{12pt} \forall i \in \llbracket  1, n \rrbracket\\
+        \hspace{25pt}\sum_{i = 1}^{n} x_{i, k}*w_i \leq f_i + (1 - annul_u)*M \hspace{12pt} \forall k \in \llbracket  1, n \rrbracket\\
+        \hspace{25pt}x_{i, j} \leq y_k hspace{12pt} \forall i \in \llbracket  1, n \rrbracket, \forall k  \in \llbracket  1, n \rrbracket
+    \end{cases}
+\end{equation}
+
+
+\subsection*{Question 3.}
+
+\begin{lstlisting}[language=Python]
+# Creation des variables x et y
+x = [model1.add_var(name="x(" + str(i) + ")", lb=0, ub=1, 
+    var_type=BINARY) for i in range(nb_objets*nb_boites)]
+y = [model1.add_var(name="y(" + str(k) + ")", lb=0, ub=1,   
+    var_type=BINARY) for k in range(nb_boites)]
+annul = [model1.add_var(name="annul(" + str(k) + ")", lb=0, ub=1, 
+    var_type=BINARY) for k in range(nb_objets)]
+
+# Ajout de la fonction objectif au modele
+model1.objective = minimize(xsum(y[k] for k in range (nb_boites)))
+
+
+# Ajout des contraintes au modele
+for i in range(nb_objets):
+    [model1.add_constr(xsum([x[i + k*nb_objets] for k in 
+        range(nb_boites)]) == 1)]
+
+for k in range (nb_objets):
+    [model1.add_constr(xsum(poids[i]*x[i + k*nb_objets] for 
+        i in range(nb_boites)) <= fragilite[i] + (1 - annul[i])*M)]
+
+for i in range (nb_objets):
+    for k in range(nb_boites):
+        [model1.add_constr(x[i + k*nb_boites] <= y[k])] 
+\end{lstlisting}
+
+Nous pouvons prendre $M = \sum_{i = 1}^{n} f_i$ comme majorant de toutes les fragilités.\vspace{12pt}
+
+Dans la suite nous pourrons prendre $M = max(f_i)$, cette valeur ne respecte pas le modèle mais elle est facilement remplaçable à l'ordinateur par une valeur constante et donc qui respecte le modèle linéaire.\vspace{12pt}
+
+\subsection*{Question 4.}
+
+Il semble en effet intéressant de remplir les boites par ordre croissant vu que le nombre d'objets que l'on peut mettre dans les boites ne dépend pas de la boite en elle même mais des objets à l'intérieur.\vspace{12pt}
+
+Pour réaliser ce remplissage des boites par ordre croissant il suffit d'ajouter la sous-condition :
+$y_k \leq y_{k + 1}$ \hspace{12pt}$\forall k \in \llbracket  1, n-1 \rrbracket$
+
+\subsection*{Question 5.}

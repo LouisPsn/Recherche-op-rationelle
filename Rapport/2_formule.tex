@@ -1,0 +1,57 @@
+\section{Seconde formulation}\label{sec:2_form}
+
+\subsection*{Question 6.}
+
+\begin{equation}
+    \begin{cases}
+        min. z = \sum_{i = 1}^{n} r[i]\\
+        s.c. \hspace{6pt}\sum_{j = 1}^{n} z_{i,j} = 1 \hspace{12pt} \forall i \in \llbracket  1, n \rrbracket\\
+        \hspace{25pt}\sum_{i = 1}^{n} z_{i, j}*w_i \leq f_j*r_j \hspace{12pt} \forall j \in \llbracket  1, n \rrbracket\\
+        \hspace{25pt}z_{i, j} \leq r[j] \hspace{12pt} \forall i \in \llbracket  1, n \rrbracket, \forall j \in \llbracket  1, n \rrbracket
+    \end{cases}
+\end{equation}
+
+La condition de minimisation représente ici un nombre minimal de paquet. Comme nous traitons ici avant des représentants d'objets ce sont eux qu'il faut minimiser.\vspace{12pt}
+
+La sous-condition n°1 signifie que chaque objet doit avoir un seul et unique représentant.\vspace{12pt}
+
+La sous-condition n°2 signifie que le poids total des objets ayant le même représentant doivent avoir un poids inférieur ou égal à la fragilité de leur représentant.\vspace{12pt}
+
+Enfin la sous-condition n°3 signifie que si un objet est affecté à l'objet j alors l'objet j est un représentant.\vspace{12pt}
+
+
+\subsection*{Question 7.}
+
+On obtient donc cette implémentation en python :\vspace{4pt}
+
+\begin{lstlisting}[language=Python]
+    # Creation du modele vide
+    model2 = Model(name = "BPFO_2", solver_name="CBC")  
+    
+    # Creation des variables z et y
+    r = [model2.add_var(name="r(" + str(i) + ")", lb=0, ub=1, 
+        var_type=BINARY) for i in range(nb_objets)]
+    z = [model2.add_var(name="z(" + str(i) + ")", lb=0, ub=1, 
+        var_type=BINARY) for i in range(nb_objets*nb_objets)]
+    
+    # Ajout de la fonction objectif au modele
+    model1.objective = minimize(xsum(r[i] for i in range (nb_objets)))
+    
+    # Ajout des contraintes au modele
+    for i in range(nb_objets):
+        [model1.add_constr(xsum(z[i + j*nb_objets] for j in range(nb_objets)) == 1)]
+    
+    for j in range(nb_objets):
+        [model1.add_constr(xsum(poids[j]*z[i + j*nb_objets] for i in range 
+            (nb_objets)) <= fragilite[j]*r[j])]
+    
+    for j in range(nb_objets):
+        for i in range(nb_objets):
+            z[i + j*nb_objets] <= r[j]
+\end{lstlisting}
+
+Ici nous n'avons pas besoin d'introduire de variable $M$ car comme l'on connaît la fragilité minimale des objets du groupe d'objets grâce aux représentants.\vspace{12pt} 
+
+\subsection*{Question 8.}
+
+\subsection*{Question 9.}

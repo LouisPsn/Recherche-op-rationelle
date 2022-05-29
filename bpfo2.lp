@@ -1,4 +1,4 @@
-\Problem name: BPFO_1
+\Problem name: BPFO_2
 
 Minimize
 OBJROW:
